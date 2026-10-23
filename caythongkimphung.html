@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cây Thông Noel 3D Lung Linh - Merry Christmas</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Pacifico & Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:wght@300;400;600;700&family=Pacifico&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #030408;
+      font-family: 'Montserrat', sans-serif;
+      color: #fff;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    /* Glow text effect */
+    .glow-title {
+      font-family: 'Dancing Script', cursive;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.8),
+                   0 0 20px rgba(255, 100, 100, 0.7),
+                   0 0 35px rgba(255, 50, 50, 0.5);
+    }
+    .neon-card {
+      background: rgba(15, 20, 35, 0.65);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(255, 215, 0, 0.08);
+    }
+    .btn-magic {
+      background: linear-gradient(135deg, rgba(255, 190, 11, 0.2), rgba(251, 86, 7, 0.3));
+      border: 1px solid rgba(255, 215, 0, 0.5);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-magic:hover {
+      background: linear-gradient(135deg, rgba(255, 190, 11, 0.4), rgba(251, 86, 7, 0.6));
+      border-color: #ffd700;
+      box-shadow: 0 0 18px rgba(255, 215, 0, 0.6);
+      transform: translateY(-2px);
+    }
+    .btn-magic.active {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: white;
+      border-color: #fff;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+    }
+    /* Custom scrollbar for wish display */
+    .wish-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .wish-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 215, 0, 0.3);
+      border-radius: 4px;
+    }
+    /* Floating animated badge */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(255,215,0,0.6)); }
+      50% { opacity: 1; filter: drop-shadow(0 0 18px rgba(255,255,100,0.9)); }
+    }
+    .animate-star-pulse {
+      animation: pulseGlow 2.5s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden select-none">
+
+  <!-- 3D WebGL Canvas Layer -->
+  <div id="canvas-container"></div>
+
+  <!-- Header & Greeting Display Area -->
+  <div class="fixed top-3 sm:top-6 left-0 w-full z-20 pointer-events-none flex flex-col items-center px-4">
+    <div class="text-center pointer-events-auto max-w-xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3 py-1 mb-1 rounded-full border border-yellow-400/30 bg-black/40 backdrop-blur-md text-yellow-300 text-xs sm:text-sm font-semibold tracking-wider">
+        <i class="fa-solid fa-tree text-emerald-400"></i>
+        <span>NOEL 2026 EDITION</span>
+        <i class="fa-solid fa-sparkles text-yellow-400"></i>
+      </div>
+      <h1 id="banner-title" class="glow-title text-3xl sm:text-5xl md:text-6xl font-bold tracking-wide text-yellow-200 py-1 transition-all duration-500">
+        Merry Christmas
+      </h1>
+      <!-- Display Custom Wish -->
+      <div class="mt-1 sm:mt-2 px-5 py-2.5 rounded-2xl neon-card transition-all duration-300 max-w-lg mx-auto">
+        <p id="display-wish-text" class="text-sm sm:text-base md:text-lg text-amber-100 font-medium italic drop-shadow leading-relaxed break-words">
+          "Chúc bạn và gia đình một mùa Giáng Sinh an lành, ấm áp, ngập tràn niềm vui và may mắn!"
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Right Floating Audio & Info Controls -->
+  <div class="fixed top-4 right-4 z-30 flex items-center gap-2">
+    <!-- Music Player Toggle -->
+    <button id="btn-music" title="Bật/Tắt Nhạc Noel" class="p-3 w-11 h-11 rounded-full neon-card flex items-center justify-center text-yellow-300 hover:text-white transition-all shadow-lg hover:scale-105 active:scale-95">
+      <i id="music-icon" class="fa-solid fa-volume-xmark text-lg"></i>
+    </button>
+    <!-- Modal Open Button -->
+    <button id="btn-open-wish-modal" title="Viết lời chúc" class="px-3.5 py-2 rounded-full neon-card text-xs sm:text-sm font-semibold text-yellow-300 hover:text-white flex items-center gap-2 hover:scale-105 transition-all shadow-lg active:scale-95">
+      <i class="fa-solid fa-pen-nib"></i>
+      <span class="hidden sm:inline">Viết Lời Chúc</span>
+    </button>
+  </div>
+
+  <!-- Bottom Control Bar (Shape Morphing Buttons) -->
+  <div class="fixed bottom-5 left-0 w-full z-20 pointer-events-none flex flex-col items-center px-3">
+    <!-- Hint -->
+    <p class="text-[11px] sm:text-xs text-yellow-200/70 mb-2 pointer-events-none drop-shadow flex items-center gap-1.5">
+      <i class="fa-solid fa-wand-magic-sparkles text-yellow-400"></i>
+      <span>Chạm hoặc xoay chuột để ngắm 360° | Đổi hình dạng hạt:</span>
+    </p>
+
+    <!-- Morph Action Buttons -->
+    <div class="pointer-events-auto flex items-center gap-2 sm:gap-4 p-1.5 rounded-2xl neon-card">
+      <button id="btn-morph-tree" class="btn-magic active px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 text-white">
+        <i class="fa-solid fa-tree"></i>
+        <span>Cây Thông</span>
+      </button>
+
+      <button id="btn-morph-heart" class="btn-magic px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 text-yellow-100">
+        <i class="fa-solid fa-heart text-pink-400"></i>
+        <span>Trái Tim</span>
+      </button>
+
+      <button id="btn-morph-explode" class="btn-magic px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 text-yellow-100">
+        <i class="fa-solid fa-burst text-amber-300"></i>
+        <span>Pháo Hoa</span>
+      </button>
+
+      <button id="btn-speed-toggle" class="btn-magic px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1 text-yellow-200" title="Tốc độ xoay">
+        <i class="fa-solid fa-rotate text-emerald-400"></i>
+        <span id="speed-label" class="hidden sm:inline">1x</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Custom Wish Input -->
+  <div id="wish-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+    <div class="relative w-full max-w-md neon-card p-6 rounded-3xl border border-yellow-400/40 shadow-2xl transform scale-95 transition-transform duration-300" id="modal-box">
+      <!-- Close button -->
+      <button id="btn-close-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-lg w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/20">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-3 text-yellow-300">
+        <i class="fa-solid fa-gift text-2xl text-red-400"></i>
+        <h3 class="text-xl font-bold font-['Dancing_Script'] text-2xl text-yellow-200">Gửi Gắm Lời Chúc</h3>
+      </div>
+      <p class="text-xs text-gray-300 mb-4">Nhập lời chúc Giáng sinh ấm áp nhất của bạn để hiển thị lung linh trên cây thông 3D nhé!</p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-yellow-300/80 mb-1">Tiêu đề (người nhận):</label>
+          <input type="text" id="input-title" placeholder="Ví dụ: Gửi Em Yêu, Merry Christmas..." value="Merry Christmas" 
+                 class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-yellow-500/30 text-yellow-100 text-sm focus:outline-none focus:border-yellow-400 placeholder-gray-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-yellow-300/80 mb-1">Nội dung lời chúc:</label>
+          <textarea id="input-wish" rows="3" placeholder="Nhập tâm tư, lời chúc ngọt ngào tại đây..." 
+                    class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-yellow-500/30 text-yellow-100 text-sm focus:outline-none focus:border-yellow-400 placeholder-gray-500 resize-none">Chúc bạn một mùa Giáng Sinh ấm áp, ngập tràn nụ cười, hạnh phúc và thành công rực rỡ!</textarea>
+        </div>
+
+        <!-- Quick preset suggestions -->
+        <div class="pt-1">
+          <span class="text-[11px] text-gray-400 block mb-1.5">Gợi ý nhanh:</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" class="preset-btn text-[11px] px-2.5 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/25 text-yellow-200 border border-yellow-500/20">
+              🎄 Noel Ấm Áp
+            </button>
+            <button type="button" class="preset-btn text-[11px] px-2.5 py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-200 border border-pink-500/20">
+              💖 Cho Người Yêu
+            </button>
+            <button type="button" class="preset-btn text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-200 border border-emerald-500/20">
+              🌟 May Mắn & Vui Vẻ
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button id="btn-apply-wish" class="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 via-rose-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <i class="fa-solid fa-sparkles"></i>
+            <span>Cập Nhật Lời Chúc</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast-msg" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-2 rounded-full neon-card text-yellow-200 text-xs sm:text-sm font-semibold opacity-0 transition-opacity duration-300 flex items-center gap-2">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toast-text">Đã cập nhật lời chúc!</span>
+  </div>
+
+  <!-- Audio Element (Synthesized gentle Christmas chimes using Web Audio API) -->
+
+  <script>
+    /* =========================================================================
+     * 1. AUDIO SYNTHESIZER (Jingle Bells Melody / Christmas Chimes via Web Audio)
+     * ========================================================================= */
+    let audioCtx = null;
+    let isPlayingMusic = false;
+    let musicInterval = null;
+    let noteIdx = 0;
+
+    // Jingle Bells Notes & Durations (Frequencies in Hz)
+    const notes = [
+      { f: 329.63, d: 250 }, { f: 329.63, d: 250 }, { f: 329.63, d: 500 }, // E E E
+      { f: 329.63, d: 250 }, { f: 329.63, d: 250 }, { f: 329.63, d: 500 }, // E E E
+      { f: 329.63, d: 250 }, { f: 392.00, d: 250 }, { f: 261.63, d: 350 }, { f: 293.66, d: 150 }, { f: 329.63, d: 800 }, // E G C D E
+      { f: 349.23, d: 250 }, { f: 349.23, d: 250 }, { f: 349.23, d: 350 }, { f: 349.23, d: 150 }, // F F F F
+      { f: 349.23, d: 250 }, { f: 329.63, d: 250 }, { f: 329.63, d: 250 }, { f: 329.63, d: 150 }, { f: 329.63, d: 150 }, // F E E E E
+      { f: 329.63, d: 250 }, { f: 293.66, d: 250 }, { f: 293.66, d: 250 }, { f: 329.63, d: 250 }, { f: 293.66, d: 500 }, { f: 392.00, d: 500 } // E D D E D G
+    ];
+
+    function playNote(freq, dur) {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        // Music Box chime timbre
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur / 1000) * 1.5);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + (dur / 1000) * 1.6);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function stepMelody() {
+      if (!isPlayingMusic) return;
+      const n = notes[noteIdx];
+      playNote(n.f, n.d);
+      noteIdx = (noteIdx + 1) % notes.length;
+      musicInterval = setTimeout(stepMelody, n.d + 120);
+    }
+
+    function toggleMusic() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const icon = document.getElementById('music-icon');
+      const btn = document.getElementById('btn-music');
+
+      if (!isPlayingMusic) {
+        isPlayingMusic = true;
+        icon.className = 'fa-solid fa-music text-yellow-400 animate-bounce';
+        btn.classList.add('border-yellow-400');
+        stepMelody();
+        showToast('Đang phát giai điệu Giáng Sinh 🔔');
+      } else {
+        isPlayingMusic = false;
+        clearTimeout(musicInterval);
+        icon.className = 'fa-solid fa-volume-xmark text-gray-400';
+        btn.classList.remove('border-yellow-400');
+        showToast('Đã tắt âm thanh');
+      }
+    }
+
+    document.getElementById('btn-music').addEventListener('click', toggleMusic);
+
+    /* =========================================================================
+     * 2. THREE.JS INITIALIZATION & PARTICLE SYSTEM
+     * ========================================================================= */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x030408, 0.0018);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
+    camera.position.set(0, 40, 160);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxDistance = 350;
+    controls.minDistance = 25;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.8;
+    controls.maxPolarAngle = Math.PI / 2 + 0.15; // Don't flip under ground too much
+
+    /* Lighting */
+    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.9);
+    scene.add(ambientLight);
+
+    const starPointLight = new THREE.PointLight(0xffd700, 3, 200, 1.2);
+    starPointLight.position.set(0, 68, 0);
+    scene.add(starPointLight);
+
+    const treeInternalLight = new THREE.PointLight(0xff4444, 2, 100);
+    treeInternalLight.position.set(0, 15, 0);
+    scene.add(treeInternalLight);
+
+    /* Generate Circular Glow Particle Texture on Canvas */
+    function createGlowParticleTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+
+      const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      gradient.addColorStop(0.2, 'rgba(255, 240, 180, 0.9)');
+      gradient.addColorStop(0.5, 'rgba(255, 180, 50, 0.4)');
+      gradient.addColorStop(0.8, 'rgba(255, 60, 60, 0.1)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const particleTexture = createGlowParticleTexture();
+
+    /* =========================================================================
+     * 3. MORPHABLE CHRISTMAS TREE PARTICLES
+     * Exactly implementing logic seen in the video:
+     * - pPositions (current)
+     * - pTreeTargets (cone tree spiral & volume)
+     * - pHeartTargets (3D parametric heart formula)
+     * - pExplodeTargets (firework spherical explosion)
+     * ========================================================================= */
+    const PARTICLE_COUNT = 3800;
+    const TREE_HEIGHT = 90;
+    const TREE_BASE_RADIUS = 36;
+    const EXPLODE_RADIUS = 90;
+
+    const geometry = new THREE.BufferGeometry();
+    const currentPositions = new Float32Array(PARTICLE_COUNT * 3);
+    const targetTreePositions = new Float32Array(PARTICLE_COUNT * 3);
+    const targetHeartPositions = new Float32Array(PARTICLE_COUNT * 3);
+    const targetExplodePositions = new Float32Array(PARTICLE_COUNT * 3);
+
+    const colors = new Float32Array(PARTICLE_COUNT * 3);
+    const particleSizes = new Float32Array(PARTICLE_COUNT);
+    const pPhases = new Float32Array(PARTICLE_COUNT); // For twinkling
+
+    // Color Palettes: Gold, Warm Red, Emerald, Shimmer White, Rose Pink
+    const palette = [
+      new THREE.Color(1.0, 0.84, 0.0),    // Gold
+      new THREE.Color(1.0, 0.92, 0.6),    // Pale gold / warm light
+      new THREE.Color(1.0, 0.22, 0.25),   // Christmas Ruby Red
+      new THREE.Color(0.2, 0.88, 0.4),    // Christmas Pine Green
+      new THREE.Color(1.0, 0.4, 0.7),     // Candy Pink
+      new THREE.Color(0.95, 0.98, 1.0)    // Diamond White
+    ];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const idx = i * 3;
+
+      // 1. Target Tree (Cone Spiral + Density inside)
+      const h = Math.random() * TREE_HEIGHT;
+      const yTree = h - TREE_HEIGHT / 2 + 5; // Center around vertical axis
+      const radiusRatio = Math.sqrt(Math.random());
+      const maxR = (1 - (h / TREE_HEIGHT)) * TREE_BASE_RADIUS;
+      const r = maxR * (0.15 + 0.85 * radiusRatio);
+      // Beautiful spiral layering
+      const theta = Math.random() * Math.PI * 2;
+      const xTree = r * Math.cos(theta);
+      const zTree = r * Math.sin(theta);
+
+      targetTreePositions[idx] = xTree;
+      targetTreePositions[idx + 1] = yTree;
+      targetTreePositions[idx + 2] = zTree;
+
+      // 2. Target Explode (Spherical firework blast)
+      const u = Math.random();
+      const v = Math.random();
+      const phi = Math.acos(2 * v - 1);
+      const lam = 2 * Math.PI * u;
+      const rad = THREE.MathUtils.lerp(15, EXPLODE_RADIUS, Math.cbrt(Math.random()));
+      targetExplodePositions[idx] = rad * Math.sin(phi) * Math.cos(lam);
+      targetExplodePositions[idx + 1] = rad * Math.sin(phi) * Math.sin(lam) + 10;
+      targetExplodePositions[idx + 2] = rad * Math.cos(phi);
+
+      // 3. Target Heart (Parametric 3D Heart curve)
+      // Classic heart formula: x = 16*sin^3(t), y = 13*cos(t)-5*cos(2t)-2*cos(3t)-cos(4t)
+      const tHeart = Math.random() * Math.PI * 2;
+      const hx = 16 * Math.pow(Math.sin(tHeart), 3);
+      const hy = 13 * Math.cos(tHeart) - 5 * Math.cos(2 * tHeart) - 2 * Math.cos(3 * tHeart) - Math.cos(4 * tHeart);
+      // Give it 3D thickness with random jitter & scale
+      const heartSpread = (Math.random() - 0.5) * 14;
+      const scaleHeart = 2.4 * (0.8 + 0.2 * Math.random());
+      targetHeartPositions[idx] = hx * scaleHeart + (Math.random() - 0.5) * 5;
+      targetHeartPositions[idx + 1] = hy * scaleHeart + 12 + (Math.random() - 0.5) * 5;
+      targetHeartPositions[idx + 2] = heartSpread;
+
+      // Initial positions start at Tree
+      currentPositions[idx] = xTree;
+      currentPositions[idx + 1] = yTree;
+      currentPositions[idx + 2] = zTree;
+
+      // Pick Color: Gold & Red dominate, with diamond sparkles
+      const col = palette[Math.floor(Math.random() * palette.length)];
+      colors[idx] = col.r;
+      colors[idx + 1] = col.g;
+      colors[idx + 2] = col.b;
+
+      // Particle Size & Twinkle Phase
+      particleSizes[i] = Math.random() * 2.5 + 1.2;
+      pPhases[i] = Math.random() * Math.PI * 2;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    // Custom Shader or Point Material with additive blending
+    const particleMaterial = new THREE.PointsMaterial({
+      size: 2.6,
+      map: particleTexture,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const treePoints = new THREE.Points(geometry, particleMaterial);
+    scene.add(treePoints);
+
+    /* =========================================================================
+     * 4. GLOWING STAR ON THE TOP OF THE TREE
+     * ========================================================================= */
+    const starGroup = new THREE.Group();
+    starGroup.position.set(0, TREE_HEIGHT / 2 + 5, 0);
+
+    // 5-Pointed Star Shape
+    function createStarShape(outerRadius, innerRadius, points) {
+      const shape = new THREE.Shape();
+      for (let i = 0; i < points * 2; i++) {
+        const r = (i % 2 === 0) ? outerRadius : innerRadius;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        if (i === 0) shape.moveTo(x, y);
+        else shape.lineTo(x, y);
+      }
+      shape.closePath();
+      return shape;
+    }
+
+    const starShape = createStarShape(5.2, 2.4, 5);
+    const starGeom = new THREE.ExtrudeGeometry(starShape, {
+      depth: 1.6,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.6,
+      bevelThickness: 0.6
+    });
+    starGeom.center();
+
+    const starMat = new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      emissive: 0xffb700,
+      emissiveIntensity: 0.9,
+      roughness: 0.15,
+      metalness: 0.8
+    });
+    const starMesh = new THREE.Mesh(starGeom, starMat);
+    starGroup.add(starMesh);
+
+    // Halo Glow Sprite for Star
+    const starSpriteMat = new THREE.SpriteMaterial({
+      map: particleTexture,
+      color: 0xffe066,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 0.85
+    });
+    const starGlowSprite = new THREE.Sprite(starSpriteMat);
+    starGlowSprite.scale.set(30, 30, 1);
+    starGroup.add(starGlowSprite);
+
+    scene.add(starGroup);
+
+    /* =========================================================================
+     * 5. GENTLE FALLING SNOWFLAKES (Background Atmosphere)
+     * ========================================================================= */
+    const SNOW_COUNT = 900;
+    const snowGeo = new THREE.BufferGeometry();
+    const snowPos = new Float32Array(SNOW_COUNT * 3);
+    const snowSpeeds = new Float32Array(SNOW_COUNT);
+
+    for (let i = 0; i < SNOW_COUNT; i++) {
+      snowPos[i * 3] = (Math.random() - 0.5) * 350;
+      snowPos[i * 3 + 1] = Math.random() * 220 - 60;
+      snowPos[i * 3 + 2] = (Math.random() - 0.5) * 350;
+      snowSpeeds[i] = Math.random() * 0.4 + 0.15;
+    }
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+
+    const snowMat = new THREE.PointsMaterial({
+      size: 1.8,
+      map: particleTexture,
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      color: 0xdff9fb
+    });
+    const snowField = new THREE.Points(snowGeo, snowMat);
+    scene.add(snowField);
+
+    /* Ground reflective subtle circular ring */
+    const ringGeo = new THREE.RingGeometry(2, 65, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x112233,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.25
+    });
+    const groundRing = new THREE.Mesh(ringGeo, ringMat);
+    groundRing.rotation.x = -Math.PI / 2;
+    groundRing.position.y = -TREE_HEIGHT / 2 + 4;
+    scene.add(groundRing);
+
+    /* =========================================================================
+     * 6. MORPHING & INTERACTION LOGIC
+     * ========================================================================= */
+    let currentMode = 'tree'; // 'tree' | 'heart' | 'explode'
+    let morphTarget = targetTreePositions;
+    let morphProgress = 1.0; // 0 (start) to 1 (done)
+    let morphSpeed = 0.035;
+
+    function setMorphMode(mode) {
+      if (currentMode === mode) return;
+      currentMode = mode;
+
+      if (mode === 'tree') {
+        morphTarget = targetTreePositions;
+        starGroup.visible = true;
+      } else if (mode === 'heart') {
+        morphTarget = targetHeartPositions;
+        starGroup.visible = false;
+      } else if (mode === 'explode') {
+        morphTarget = targetExplodePositions;
+        starGroup.visible = false;
+      }
+
+      // Update button highlights
+      ['tree', 'heart', 'explode'].forEach(m => {
+        const btn = document.getElementById(`btn-morph-${m}`);
+        if (m === mode) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    document.getElementById('btn-morph-tree').addEventListener('click', () => setMorphMode('tree'));
+    document.getElementById('btn-morph-heart').addEventListener('click', () => setMorphMode('heart'));
+    document.getElementById('btn-morph-explode').addEventListener('click', () => setMorphMode('explode'));
+
+    // Rotation Speed Toggle
+    let rotSpeedMultiplier = 1;
+    const speedBtn = document.getElementById('btn-speed-toggle');
+    const speedLabel = document.getElementById('speed-label');
+    speedBtn.addEventListener('click', () => {
+      if (rotSpeedMultiplier === 1) {
+        rotSpeedMultiplier = 2;
+        controls.autoRotateSpeed = 1.6;
+        speedLabel.textContent = '2x';
+      } else if (rotSpeedMultiplier === 2) {
+        rotSpeedMultiplier = 0;
+        controls.autoRotate = false;
+        speedLabel.textContent = '0x';
+      } else {
+        rotSpeedMultiplier = 1;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.8;
+        speedLabel.textContent = '1x';
+      }
+    });
+
+    /* =========================================================================
+     * 7. WISH CUSTOMIZER MODAL & PRESETS
+     * ========================================================================= */
+    const modal = document.getElementById('wish-modal');
+    const modalBox = document.getElementById('modal-box');
+    const btnOpenWish = document.getElementById('btn-open-wish-modal');
+    const btnCloseWish = document.getElementById('btn-close-modal');
+    const btnApplyWish = document.getElementById('btn-apply-wish');
+    const inputTitle = document.getElementById('input-title');
+    const inputWish = document.getElementById('input-wish');
+    const bannerTitle = document.getElementById('banner-title');
+    const displayWishText = document.getElementById('display-wish-text');
+
+    function openModal() {
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modalBox.classList.remove('scale-95');
+        modalBox.classList.add('scale-100');
+      }, 10);
+    }
+
+    function closeModal() {
+      modal.classList.add('opacity-0');
+      modalBox.classList.remove('scale-100');
+      modalBox.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+    }
+
+    btnOpenWish.addEventListener('click', openModal);
+    btnCloseWish.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Preset messages
+    const presets = [
+      {
+        title: "Merry Christmas 🎄",
+        wish: "Chúc bạn một mùa Giáng Sinh an lành, tình yêu ngọt ngào, trái tim luôn ấm áp và mọi ước mong đều thành sự thật!"
+      },
+      {
+        title: "Gửi Em Yêu 💖",
+        wish: "Em là món quà Giáng sinh tuyệt vời nhất mà cuộc đời đã mang đến cho anh. Noel này và mãi về sau, mong em luôn cười thật tươi!"
+      },
+      {
+        title: "Chúc Mừng Năm Mới 🌟",
+        wish: "Giáng Sinh ấm áp và chuẩn bị đón năm mới 2026 rực rỡ, bùng nổ may mắn, bình an và phát tài phát lộc!"
+      }
+    ];
+
+    document.querySelectorAll('.preset-btn').forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        if (presets[idx]) {
+          inputTitle.value = presets[idx].title;
+          inputWish.value = presets[idx].wish;
+        }
+      });
+    });
+
+    btnApplyWish.addEventListener('click', () => {
+      const newTitle = inputTitle.value.trim() || "Merry Christmas";
+      const newWish = inputWish.value.trim() || "Chúc bạn một mùa Giáng Sinh an lành!";
+
+      bannerTitle.textContent = newTitle;
+      displayWishText.textContent = `"${newWish}"`;
+
+      // Trigger text flash animation
+      bannerTitle.classList.add('scale-105');
+      setTimeout(() => bannerTitle.classList.remove('scale-105'), 350);
+
+      closeModal();
+      showToast('Đã cập nhật lời chúc Noel thành công! 🎅✨');
+    });
+
+    // Toast notification function
+    let toastTimeout;
+    function showToast(text) {
+      const toast = document.getElementById('toast-msg');
+      const toastText = document.getElementById('toast-text');
+      toastText.textContent = text;
+      toast.classList.remove('opacity-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0');
+      }, 2600);
+    }
+
+    /* =========================================================================
+     * 8. ANIMATION LOOP
+     * ========================================================================= */
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime();
+
+      // 1. Controls update
+      controls.update();
+
+      // 2. Star Rotation & Floating Glow
+      if (starGroup) {
+        starGroup.rotation.y = elapsedTime * 0.9;
+        starMesh.rotation.z = Math.sin(elapsedTime * 1.5) * 0.08;
+        const starScale = 1 + Math.sin(elapsedTime * 4) * 0.08;
+        starGlowSprite.scale.set(28 * starScale, 28 * starScale, 1);
+        starPointLight.intensity = 2.4 + Math.sin(elapsedTime * 5) * 0.8;
+      }
+
+      // 3. Morph Particle Positions smoothly (Lerp towards active targets)
+      const positions = geometry.attributes.position.array;
+      const lerpFactor = 0.045; // Smooth transition speed
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const idx = i * 3;
+
+        // Current coordinates
+        let cx = positions[idx];
+        let cy = positions[idx + 1];
+        let cz = positions[idx + 2];
+
+        // Target coordinates
+        let tx = morphTarget[idx];
+        let ty = morphTarget[idx + 1];
+        let tz = morphTarget[idx + 2];
+
+        // Add subtle continuous organic floating/breathing motion
+        const phase = pPhases[i] + elapsedTime * 2.0;
+        const jitter = Math.sin(phase) * 0.35;
+
+        positions[idx] += (tx - cx) * lerpFactor + jitter * 0.02;
+        positions[idx + 1] += (ty - cy) * lerpFactor + Math.cos(phase) * 0.04;
+        positions[idx + 2] += (tz - cz) * lerpFactor + jitter * 0.02;
+      }
+      geometry.attributes.position.needsUpdate = true;
+
+      // Subtle tree group breathing
+      treePoints.rotation.y = elapsedTime * 0.05;
+
+      // 4. Snow falling animation
+      const snowPositions = snowGeo.attributes.position.array;
+      for (let i = 0; i < SNOW_COUNT; i++) {
+        const yIndex = i * 3 + 1;
+        snowPositions[yIndex] -= snowSpeeds[i];
+        if (snowPositions[yIndex] < -70) {
+          snowPositions[yIndex] = 140; // Respawn above
+        }
+        // slight drift in x
+        snowPositions[i * 3] += Math.sin(elapsedTime + i) * 0.05;
+      }
+      snowGeo.attributes.position.needsUpdate = true;
+
+      renderer.render(scene, camera);
+    }
+
+    /* Window Resize Handler */
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* Start on Window Load */
+    window.onload = function () {
+      animate();
+    };
+  </script>
+</body>
+</html>
